@@ -13,8 +13,6 @@ Contents:
                      NOTE: this last piece is an INCIDENTAL exploration
                      using standard energy methods (Fourier/Parseval),
                      not a result derived from the Delta structure itself.
-                     It is not connected to the Navier-Stokes Millennium
-                     Problem (existence/smoothness) in the paper.
 
 Run: python physical_law_verification_en.py
 or call individual functions separately.
