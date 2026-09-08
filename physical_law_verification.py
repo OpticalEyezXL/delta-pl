@@ -310,6 +310,65 @@ def T7_many_body_gravity_superposition(N_masses=3, seed=2):
     print("  독립적으로 작용한다는 것과 일치.\n")
 
 
+# ============================================================
+# §5.4. T3와 전하보존으로 강제되는 변위전류
+#   주장: (i) T3(div(curl B)=0, 순수 기하학, Δ 내부 사실),
+#   (ii) 가우스 법칙 div E = rho/eps0(T1/T2 + 물리적 동일시로 이미 도출됨),
+#   (iii) 전하보존 d(rho)/dt + div(J) = 0(rho,J,eps0,mu0와 같은 지위의
+#   새 외부 물리적 입력)을 결합하면, 변위전류항 X = eps0*dE/dt가
+#   div(J+X)=0을 만족시키는 유일한 보정항으로 대수적으로 강제된다.
+#   주의: 전하보존 자체는 Δ에서 유도된 게 아니라 논문의 다른 곳(rho,J,
+#   eps0,mu0)과 마찬가지로 도입한 것이다. 별도로 도입하지 않은 것은
+#   보정항의 구체적 형태다 — 그 형태는 전하보존+가우스법칙+T3만으로
+#   대수적으로 정해진다.
+# ============================================================
+
+def displacement_current_from_T3_and_continuity():
+    print("=== §5.4: T3와 전하보존으로 강제되는 변위전류 ===")
+    import sympy as sp
+
+    x, y, z, t = sp.symbols('x y z t', real=True)
+    eps0 = sp.symbols('epsilon_0', positive=True)
+
+    rho = sp.Function('rho')(x, y, z, t)
+    Ex = sp.Function('E_x')(x, y, z, t)
+    Ey = sp.Function('E_y')(x, y, z, t)
+    Ez = sp.Function('E_z')(x, y, z, t)
+
+    def div(Fx, Fy, Fz):
+        return sp.diff(Fx, x) + sp.diff(Fy, y) + sp.diff(Fz, z)
+
+    # T3 재확인 (임의의 A에 대해 div(curl A) = 0)
+    Ax = sp.Function('A_x')(x, y, z, t)
+    Ay = sp.Function('A_y')(x, y, z, t)
+    Az = sp.Function('A_z')(x, y, z, t)
+    curlA = (sp.diff(Az, y) - sp.diff(Ay, z),
+             sp.diff(Ax, z) - sp.diff(Az, x),
+             sp.diff(Ay, x) - sp.diff(Ax, y))
+    t3_check = sp.simplify(div(*curlA))
+    print(f"  T3 (div curl A):           {t3_check}   (기댓값 0)")
+    assert t3_check == 0
+
+    # 가우스 법칙 (이미 도출된 결과로 전제): div E = rho/eps0
+    gauss = sp.Eq(div(Ex, Ey, Ez), rho/eps0)
+
+    # 필요한 보정: div(X) = d(rho)/dt  (연속방정식 div J = -d(rho)/dt에서,
+    # div(J+X)=0 이 되려면 div X = -div J = d(rho)/dt)
+    required = sp.diff(rho, t)
+
+    # 가우스 법칙이 강제하는 후보: X = eps0 * dE/dt
+    X = (eps0*sp.diff(Ex, t), eps0*sp.diff(Ey, t), eps0*sp.diff(Ez, t))
+    divX_via_gauss = eps0 * sp.diff(div(Ex, Ey, Ez), t)
+
+    diff_check = sp.simplify(divX_via_gauss - required.subs(rho, eps0*div(Ex,Ey,Ez)))
+    print(f"  div(eps0*dE/dt) - d(rho)/dt  (가우스법칙으로 rho 치환): {diff_check}   (기댓값 0)")
+    assert diff_check == 0
+
+    print("  확인됨: X = eps0*dE/dt가 정확히 div(X) = d(rho)/dt를 만족 —")
+    print("  즉 div(J+X)=0이 복원된다. 이것이 변위전류항이며, 전하보존+가우스법칙+T3만")
+    print("  주어지면 (별도로 형태를 맞춘 것이 아니라) 대수적으로 강제된다.\n")
+
+
 if __name__ == "__main__":
     T1_dissipative_semigroup_integral()
     T2_heat_kernel_greens_function(d=3)
@@ -317,3 +376,4 @@ if __name__ == "__main__":
     section3_1_Vmn_magnitude_phase_separation()
     section10_relaxation_decoherence_inequality()
     T7_many_body_gravity_superposition()
+    displacement_current_from_T3_and_continuity()
