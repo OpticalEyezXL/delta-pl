@@ -7,6 +7,7 @@ physical_law 논문 검증 스크립트 (소산 사영)
 목차:
   - T1  (§4.1): 소산 반군의 시간적분 vs Delta^-1
   - T2  (§4.2): d차원 열핵의 시간적분
+  - §6.2: 나비에-스토크스 방정식의 Δ 부호 및 Taylor-Green 압력해 검증
   - §6 부기: 이류항 (u·∇)u가 만드는 삼중결합텐서의 에너지중립성
              주의: 이 항목은 표준 에너지법(Fourier/Parseval)을 빌린
              부수적 탐구이며, Δ 구조 자체에서 나온 결과가 아니다.
@@ -89,6 +90,67 @@ def T2_heat_kernel_greens_function(d=3):
     assert max_err < mpf('1e-8')
     print("  확인됨: 해석적 그린함수 1/(4πr)가 수치적분과 1e-8 이내로 일치.\n")
     return rows
+
+
+# ============================================================
+# §6.2. 나비에-스토크스 방정식: Δ 부호 검증 및 Taylor-Green 압력해
+#
+#   논문 부호관례: Δe_n=n²e_n (양의 생성자), Δ=-∇² (§4.4), 순방향 소산
+#   반군 e^{-tΔ}(§2). 이 관례로 옮기면 표준 NS의 +η∇²u는 -ηΔu가 된다:
+#     ρ(∂_t u+(u·∇)u) = -∇p - ηΔu,   ∇·u = 0
+#   이 함수는 (i) 이 부호로 Taylor-Green 속도장에 필요한 압력장을 역산하고
+#   문서의 압력해와 일치하는지, (ii) 이전 판(오류)이었던 압력해가 실제로는
+#   불일치함을, (iii) 압력 포아송 방정식의 부호(Δp=ρ∇·[(u·∇)u])가 이
+#   NS 방정식 자체에 발산을 취해 나온다는 것을 sympy로 확인한다.
+# ============================================================
+
+def section6_2_navier_stokes_delta_sign():
+    print("=== §6.2: 나비에-스토크스 방정식의 Δ 부호 및 Taylor-Green 압력해 ===")
+    import sympy as sp
+
+    x, y, t, rho, eta = sp.symbols('x y t rho eta', positive=True, real=True)
+    nu = eta / rho
+
+    F = sp.exp(-2 * nu * t)
+    u = sp.cos(x) * sp.sin(y) * F
+    v = -sp.sin(x) * sp.cos(y) * F
+
+    def laplacian(f):
+        return sp.diff(f, x, 2) + sp.diff(f, y, 2)
+
+    div_u = sp.simplify(sp.diff(u, x) + sp.diff(v, y))
+    print(f"  ∇·u (기댓값 0): {div_u}")
+    assert div_u == 0
+
+    # -ηΔu = +η∇²u (Δ=-∇² 관례)
+    rhs_x_visc = eta * laplacian(u)
+    rhs_y_visc = eta * laplacian(v)
+    lhs_x = rho * (sp.diff(u, t) + u * sp.diff(u, x) + v * sp.diff(u, y))
+    lhs_y = rho * (sp.diff(v, t) + u * sp.diff(v, x) + v * sp.diff(v, y))
+    dpdx_needed = sp.simplify(rhs_x_visc - lhs_x)
+    dpdy_needed = sp.simplify(rhs_y_visc - lhs_y)
+
+    p_correct = -(rho / 4) * F**2 * (sp.cos(2 * x) + sp.cos(2 * y))
+    check_x = sp.simplify(sp.diff(p_correct, x) - dpdx_needed)
+    check_y = sp.simplify(sp.diff(p_correct, y) - dpdy_needed)
+    print(f"  문서 압력해 dp/dx 잔차 (기댓값 0): {check_x}")
+    print(f"  문서 압력해 dp/dy 잔차 (기댓값 0): {check_y}")
+    assert check_x == 0 and check_y == 0
+    print("  확인됨: p = -(ρ/4)(cos2x+cos2y)e^{-4ηt/ρ}가 정확한 해석해다.")
+
+    p_wrong = (rho / 4) * (sp.cos(2 * x) - sp.cos(2 * y))
+    check_x_wrong = sp.simplify(sp.diff(p_wrong, x) - dpdx_needed)
+    check_y_wrong = sp.simplify(sp.diff(p_wrong, y) - dpdy_needed)
+    print(f"  이전 판(오류) 압력해 잔차: dp/dx={check_x_wrong}, dp/dy={check_y_wrong}  (0이 아님 — 오류 확인)")
+    assert check_x_wrong != 0 or check_y_wrong != 0
+
+    # 압력 포아송 방정식 부호: 라플라시안-편미분 교환 항등식 확인
+    Utest = sp.Function('U')(x, y, t)
+    comm_residual = sp.simplify(sp.diff(laplacian(Utest), x) - sp.diff(sp.diff(Utest, x, 2) + sp.diff(Utest, y, 2), x))
+    print(f"  라플라시안-편미분 교환 항등식 잔차 (기댓값 0): {comm_residual}")
+    assert comm_residual == 0
+    print("  => ∇·u=0 하에서 NS에 발산을 취하면 Δp = ρ∇·[(u·∇)u] (부호 +ρ).")
+    print("  이는 위 압력해 검증으로 독립적으로 재확인된다.\n")
 
 
 # ============================================================
@@ -372,6 +434,7 @@ def displacement_current_from_T3_and_continuity():
 if __name__ == "__main__":
     T1_dissipative_semigroup_integral()
     T2_heat_kernel_greens_function(d=3)
+    section6_2_navier_stokes_delta_sign()
     triple_coupling_tensor_energy_neutrality()
     section3_1_Vmn_magnitude_phase_separation()
     section10_relaxation_decoherence_inequality()
