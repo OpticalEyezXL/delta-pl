@@ -28,7 +28,8 @@ mp.dps = 30  # 30 decimal digits of precision
 
 # ============================================================
 # Theorem T1. Time Integral of the Dissipative Semigroup and Delta^-1
-#   Integral_0^inf e^{-2n^2 t} dt = 1/(2n^2) = (Delta^-1)_nn
+#   Integral_0^inf e^{-2n^2 t} dt = 1/(2n^2) = (1/2)(Delta^-1)_nn
+#   (Delta^-1's own eigenvalue is n^-2, so the integral is exactly half of it — see the paper's Sec. 4.1)
 # ============================================================
 
 def T1_dissipative_semigroup_integral():
